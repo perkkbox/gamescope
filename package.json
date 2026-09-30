@@ -1,9 +1,7 @@
 {
-  "name": "gamescope-live-reviews",
+  "name": "gamescope",
   "version": "2.0.0",
   "private": true,
-  "description": "GameScope game price browser with live-feed adapters and user reviews.",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
