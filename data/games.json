@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "id": "steam-730",
+    "title": "Counter-Strike 2",
+    "platform": "Steam",
+    "country": "US",
+    "price": 0,
+    "regularPrice": 0,
+    "discount": 0,
+    "currency": "USD",
+    "image": "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg",
+    "source": "demo"
+  },
+  {
+    "id": "steam-570",
+    "title": "Dota 2",
+    "platform": "Steam",
+    "country": "US",
+    "price": 0,
+    "regularPrice": 0,
+    "discount": 0,
+    "currency": "USD",
+    "image": "https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg",
+    "source": "demo"
+  },
+  {
+    "id": "demo-mario",
+    "title": "Mario Kart World",
+    "platform": "Nintendo",
+    "country": "US",
+    "price": 79.99,
+    "regularPrice": 79.99,
+    "discount": 0,
+    "currency": "USD",
+    "image": "",
+    "source": "demo"
+  },
+  {
+    "id": "demo-gang-beasts",
+    "title": "Gang Beasts",
+    "platform": "Xbox",
+    "country": "US",
+    "price": 19.99,
+    "regularPrice": 19.99,
+    "discount": 0,
+    "currency": "USD",
+    "image": "",
+    "source": "demo"
+  }
+]
