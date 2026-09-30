@@ -1,303 +1,58 @@
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const { URL } = require("url");
-
-const PORT = process.env.PORT || 3000;
-const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
-const REVIEWS_FILE = path.join(DATA_DIR, "reviews.json");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
-const GAMES_FILE = path.join(DATA_DIR, "games.json");
-
-fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(REVIEWS_FILE)) fs.writeFileSync(REVIEWS_FILE, "[]");
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, "[]");
-if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, "[]");
-if (!fs.existsSync(GAMES_FILE)) {
-  fs.writeFileSync(GAMES_FILE, JSON.stringify([
-    {
-      id:"steam-730",
-      title:"Counter-Strike 2",
-      platform:"Steam",
-      country:"US",
-      price:0,
-      regularPrice:0,
-      discount:0,
-      currency:"USD",
-      image:"https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg",
-      source:"demo"
-    },
-    {
-      id:"steam-570",
-      title:"Dota 2",
-      platform:"Steam",
-      country:"US",
-      price:0,
-      regularPrice:0,
-      discount:0,
-      currency:"USD",
-      image:"https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg",
-      source:"demo"
-    },
-    {
-      id:"demo-mario",
-      title:"Mario Kart World",
-      platform:"Nintendo",
-      country:"US",
-      price:79.99,
-      regularPrice:79.99,
-      discount:0,
-      currency:"USD",
-      image:"",
-      source:"demo"
-    },
-    {
-      id:"demo-gang-beasts",
-      title:"Gang Beasts",
-      platform:"Xbox",
-      country:"US",
-      price:19.99,
-      regularPrice:19.99,
-      discount:0,
-      currency:"USD",
-      image:"",
-      source:"demo"
-    }
-  ], null, 2));
+const http=require("http"),fs=require("fs"),path=require("path"),crypto=require("crypto");const {URL}=require("url");
+const PORT=process.env.PORT||10000,ROOT=__dirname,DATA=path.join(ROOT,"data");
+for(const f of ["users.json","sessions.json","reviews.json","steam-catalog.json","steam-cache.json"]){const p=path.join(DATA,f);if(!fs.existsSync(p))fs.writeFileSync(p,"[]")}
+const read=(f,d)=>{try{return JSON.parse(fs.readFileSync(path.join(DATA,f),"utf8"))}catch{return d}};
+const write=(f,v)=>fs.writeFileSync(path.join(DATA,f),JSON.stringify(v,null,2));
+const send=(r,s,b,t="application/json")=>{r.writeHead(s,{"Content-Type":t+"; charset=utf-8","Cache-Control":"no-store"});r.end(t==="application/json"?JSON.stringify(b):b)};
+function cookie(req,n){const x=(req.headers.cookie||"").split(";").map(s=>s.trim()).find(s=>s.startsWith(n+"="));return x?decodeURIComponent(x.slice(n.length+1)):null}
+function user(req){const id=cookie(req,"gs_session"),ss=read("sessions.json",[]),s=ss.find(x=>x.id===id&&x.expires>Date.now());if(!s)return null;return read("users.json",[]).find(x=>x.username===s.username)||null}
+function hp(p,s=crypto.randomBytes(16).toString("hex")){return {salt:s,hash:crypto.scryptSync(p,s,64).toString("hex")}}
+function body(req){return new Promise((ok,no)=>{let d="";req.on("data",c=>d+=c);req.on("end",()=>{try{ok(d?JSON.parse(d):{})}catch(e){no(e)}})})}
+async function getj(u,o={}){const r=await fetch(u,o);if(!r.ok)throw Error(r.status);return r.json()}
+async function catalog(){
+ let c=read("steam-catalog.json",{});
+ if(c.apps?.length&&Date.now()-c.updatedAt<86400000)return c.apps;
+ try{
+  let apps=[];
+  if(process.env.STEAM_API_KEY){
+   let last=0;
+   for(let n=0;n<20;n++){let u=new URL("https://partner.steam-api.com/IStoreService/GetAppList/v1/");u.searchParams.set("key",process.env.STEAM_API_KEY);u.searchParams.set("include_games","true");u.searchParams.set("include_dlc","false");u.searchParams.set("include_software","false");u.searchParams.set("include_videos","false");u.searchParams.set("include_hardware","false");u.searchParams.set("max_results","50000");if(last)u.searchParams.set("last_appid",last);let j=await getj(u);let b=j.response?.apps||[];apps.push(...b.map(a=>({appid:a.appid,name:a.name})));let next=j.response?.last_appid||b.at(-1)?.appid||0;if(!b.length||next<=last||!j.response?.have_more_results)break;last=next}
+  }else{let j=await getj("https://api.steampowered.com/ISteamApps/GetAppList/v2/");apps=(j.applist?.apps||[]).map(a=>({appid:a.appid,name:a.name}))}
+  apps=apps.filter(a=>a.appid&&a.name).slice(0,30000);write("steam-catalog.json",{updatedAt:Date.now(),apps});return apps
+ }catch{return c.apps||[{appid:730,name:"Counter-Strike 2"},{appid:570,name:"Dota 2"},{appid:440,name:"Team Fortress 2"},{appid:252490,name:"Rust"}]}
 }
-
-function json(res, status, body) {
-  res.writeHead(status, {"Content-Type":"application/json; charset=utf-8", "Access-Control-Allow-Origin":"*"});
-  res.end(JSON.stringify(body));
+async function details(id,cc){
+ const c=read("steam-cache.json",{}),k=id+":"+cc.toLowerCase();if(c[k]&&Date.now()-c[k].at<86400000)return c[k].d;
+ try{let j=await getj(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=${cc.toLowerCase()}&l=english`),x=j[String(id)];if(!x?.success)return null;let d=x.data,p=d.price_overview;
+  let v={id:"steam-"+id,title:d.name,platform:"Steam",country:cc,price:p?p.final/100:0,regularPrice:p?p.initial/100:0,discount:p?p.discount_percent:0,currency:p?.currency||"USD",image:d.header_image||"",source:"live",url:`https://store.steampowered.com/app/${id}/?cc=${cc.toLowerCase()}`,free:!!d.is_free};c[k]={at:Date.now(),d:v};write("steam-cache.json",c);return v
+ }catch{return null}
 }
-
-function readJson(file, fallback=[]) {
-  try { return JSON.parse(fs.readFileSync(file, "utf8")); }
-  catch { return fallback; }
+const demos=[
+ ["Xbox","Gang Beasts",19.99],["Nintendo","Mario Kart World",79.99],["PlayStation","Astro Bot",59.99],["Meta Quest","Beat Saber",29.99],
+ ["Xbox","Forza Horizon 5",59.99],["Nintendo","The Legend of Zelda: Tears of the Kingdom",69.99],["PlayStation","Marvel's Spider-Man 2",69.99],["Meta Quest","SUPERHOT VR",24.99]
+].map((x,i)=>({id:"demo-"+i,title:x[1],platform:x[0],country:"US",price:x[2],regularPrice:x[2],discount:0,currency:"USD",image:"",source:"demo"}));
+async function games(u){
+ const platform=(u.searchParams.get("platform")||"all").toLowerCase(),cc=(u.searchParams.get("country")||"US").toUpperCase(),q=(u.searchParams.get("q")||"").toLowerCase(),sale=u.searchParams.get("sale")==="1",sort=u.searchParams.get("sort")||"featured";
+ let out=[];
+ if(platform==="all"||platform==="steam"){let a=await catalog(),cand=q?a.filter(x=>x.name.toLowerCase().includes(q)):a;for(const x of cand.slice(0,60)){let d=await details(x.appid,cc);if(d)out.push(d)}}
+ if(platform==="all"||platform==="xbox"||platform==="nintendo"||platform==="playstation"||platform==="meta quest")out.push(...demos.filter(x=>(platform==="all"||x.platform.toLowerCase()===platform)&&(x.country===cc)&&(!q||x.title.toLowerCase().includes(q))));
+ if(sale)out=out.filter(x=>x.discount>0);
+ if(sort==="price-low")out.sort((a,b)=>a.price-b.price);else if(sort==="price-high")out.sort((a,b)=>b.price-a.price);else if(sort==="discount")out.sort((a,b)=>b.discount-a.discount);else out.sort((a,b)=>a.title.localeCompare(b.title));
+ return out.slice(0,36)
 }
-
-function writeJson(file, value) {
-  fs.writeFileSync(file, JSON.stringify(value, null, 2));
+async function api(req,res,u){
+ if(u.pathname==="/api/games")return send(res,200,await games(u));
+ if(u.pathname==="/api/status"){let c=read("steam-catalog.json",{});return send(res,200,{steamCatalogCount:c.apps?.length||0,updated:c.updatedAt||0})}
+ if(u.pathname==="/api/me")return send(res,200,{user:user(req)?.username||null});
+ if(u.pathname==="/api/reviews"&&req.method==="GET")return send(res,200,read("reviews.json",[]));
+ if(u.pathname==="/api/logout"&&req.method==="POST"){let id=cookie(req,"gs_session");write("sessions.json",read("sessions.json",[]).filter(x=>x.id!==id));res.setHeader("Set-Cookie","gs_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax");return send(res,200,{ok:true})}
+ if((u.pathname==="/api/login"||u.pathname==="/api/register")&&req.method==="POST"){let b=await body(req),un=String(b.username||"").trim(),pw=String(b.password||""),us=read("users.json",[]),found=us.find(x=>x.username.toLowerCase()===un.toLowerCase());
+  if(u.pathname==="/api/register"){if(!/^[A-Za-z0-9_]{3,24}$/.test(un)||pw.length<6)return send(res,400,{error:"Username/password requirements not met."});if(found)return send(res,409,{error:"Username already exists."});let h=hp(pw);us.push({username:un,...h,createdAt:Date.now()});write("users.json",us)}
+  else if(!found||crypto.scryptSync(pw,found.salt,64).toString("hex")!==found.hash)return send(res,401,{error:"Invalid username or password."});
+  let sid=crypto.randomBytes(32).toString("hex"),ss=read("sessions.json",[]).filter(x=>x.expires>Date.now());ss.push({id:sid,username:un,expires:Date.now()+2592000000});write("sessions.json",ss);res.setHeader("Set-Cookie",`gs_session=${sid}; Path=/; HttpOnly; Max-Age=2592000; SameSite=Lax`);return send(res,200,{ok:true,user:un})
+ }
+ if(u.pathname==="/api/reviews"&&req.method==="POST"){let me=user(req);if(!me)return send(res,401,{error:"Log in to post a review."});let b=await body(req),rs=read("reviews.json",[]);rs.unshift({id:crypto.randomUUID(),username:me.username,title:String(b.title||"").trim(),platform:String(b.platform||"").trim(),rating:Math.max(1,Math.min(5,Number(b.rating)||5)),text:String(b.text||"").trim(),createdAt:Date.now()});write("reviews.json",rs);return send(res,201,{ok:true})}
+ return send(res,404,{error:"Not found"})
 }
-
-function sendFile(res, file) {
-  const ext = path.extname(file).toLowerCase();
-  const types = {
-    ".html":"text/html; charset=utf-8",
-    ".css":"text/css; charset=utf-8",
-    ".js":"text/javascript; charset=utf-8",
-    ".json":"application/json; charset=utf-8",
-    ".svg":"image/svg+xml"
-  };
-  fs.readFile(file, (err, data) => {
-    if (err) return json(res, 404, {error:"Not found"});
-    res.writeHead(200, {"Content-Type": types[ext] || "application/octet-stream"});
-    res.end(data);
-  });
-}
-
-async function fetchSteamApp(appid, country) {
-  const cc = country || "US";
-  const url = `https://store.steampowered.com/api/appdetails?appids=${encodeURIComponent(appid)}&cc=${encodeURIComponent(cc.toLowerCase())}&l=en`;
-  const r = await fetch(url, {headers: {"User-Agent":"GameScope/2.0"}});
-  if (!r.ok) throw new Error(`Steam HTTP ${r.status}`);
-  const data = await r.json();
-  const item = data[String(appid)]?.data;
-  if (!item || !item.price_overview) return null;
-  const p = item.price_overview;
-  return {
-    price: p.final / 100,
-    regularPrice: p.initial / 100,
-    discount: p.discount_percent || 0,
-    currency: p.currency,
-    url: item.store_url,
-    image: item.header_image,
-    title: item.name,
-    platform: "Steam",
-    country: cc,
-    source: "steam-live",
-    updatedAt: new Date().toISOString()
-  };
-}
-
-async function getPrices() {
-  const games = readJson(GAMES_FILE, []);
-  const out = [];
-  for (const g of games) {
-    if (g.platform === "Steam" && /^\d+$/.test(String(g.id).replace("steam-",""))) {
-      const appid = String(g.id).replace("steam-","");
-      try {
-        const live = await fetchSteamApp(appid, g.country || "US");
-        out.push({...g, ...(live || {}), id:g.id});
-      } catch {
-        out.push({...g, source:"fallback", updatedAt:new Date().toISOString()});
-      }
-    } else {
-      out.push(g);
-    }
-  }
-
-  // Optional normalized feed for Xbox/Nintendo/PlayStation/Oculus or other stores.
-  // Set PRICE_FEED_URL to a JSON endpoint you control. The endpoint should return:
-  // { "games": [ {id,title,platform,country,price,regularPrice,discount,currency,image,url,source} ] }
-  if (process.env.PRICE_FEED_URL) {
-    try {
-      const r = await fetch(process.env.PRICE_FEED_URL, {headers: {"User-Agent":"GameScope/2.0"}});
-      if (r.ok) {
-        const feed = await r.json();
-        if (Array.isArray(feed.games)) {
-          const byId = new Map(out.map(g => [g.id, g]));
-          for (const item of feed.games) byId.set(item.id, {...byId.get(item.id), ...item, source:item.source || "live-feed", updatedAt:new Date().toISOString()});
-          return [...byId.values()];
-        }
-      }
-    } catch {}
-  }
-  return out;
-}
-
-
-function makeToken() {
-  return require("crypto").randomBytes(32).toString("hex");
-}
-function hashPassword(password, salt) {
-  return require("crypto").scryptSync(password, salt, 64).toString("hex");
-}
-function currentUser(req) {
-  const token = (req.headers.cookie || "").split(";").map(x=>x.trim()).find(x=>x.startsWith("gamescope_session="))?.split("=")[1];
-  if (!token) return null;
-  const sessions = readJson(SESSIONS_FILE, []);
-  const session = sessions.find(s => s.token === token && new Date(s.expiresAt) > new Date());
-  if (!session) return null;
-  return readJson(USERS_FILE, []).find(u => u.id === session.userId) || null;
-}
-function setSession(res, userId) {
-  const token = makeToken();
-  const sessions = readJson(SESSIONS_FILE, []).filter(s => new Date(s.expiresAt) > new Date());
-  sessions.push({token,userId,expiresAt:new Date(Date.now()+1000*60*60*24*30).toISOString()});
-  writeJson(SESSIONS_FILE, sessions);
-  res.setHeader("Set-Cookie", `gamescope_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${60*60*24*30}`);
-}
-function sanitizeUsername(s) {
-  return String(s||"").trim().slice(0,24).replace(/[^a-zA-Z0-9 _-]/g,"");
-}
-
-function sanitizeReview(body, user) {
-  const text = String(body.text || "").trim().slice(0, 1000);
-  const rating = Number(body.rating);
-  const gameId = String(body.gameId || "").trim().slice(0, 100);
-  const platform = String(body.platform || "").trim().slice(0, 30);
-  if (!user || !text || !gameId || !platform || !Number.isInteger(rating) || rating < 1 || rating > 5) return null;
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-    gameId, platform, userId:user.id, username:user.username, rating, text,
-    createdAt: new Date().toISOString()
-  };
-}
-
-const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin":"*",
-        "Access-Control-Allow-Methods":"GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers":"Content-Type"
-      });
-      return res.end();
-    }
-
-    if (url.pathname === "/api/games" && req.method === "GET") {
-      return json(res, 200, await getPrices());
-    }
-
-
-    if (url.pathname === "/api/me" && req.method === "GET") {
-      const user = currentUser(req);
-      return json(res, 200, user ? {loggedIn:true, user:{id:user.id,username:user.username}} : {loggedIn:false});
-    }
-
-    if (url.pathname === "/api/register" && req.method === "POST") {
-      let raw = "";
-      req.on("data", c => raw += c);
-      req.on("end", () => {
-        try {
-          const b = JSON.parse(raw);
-          const username = sanitizeUsername(b.username);
-          const password = String(b.password || "");
-          if (username.length < 3 || password.length < 8) return json(res,400,{error:"Username must be 3+ characters and password must be 8+ characters."});
-          const users = readJson(USERS_FILE, []);
-          if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) return json(res,409,{error:"That username is already taken."});
-          const salt = require("crypto").randomBytes(16).toString("hex");
-          const user = {id:require("crypto").randomUUID(),username,passwordHash:hashPassword(password,salt),salt,createdAt:new Date().toISOString()};
-          users.push(user); writeJson(USERS_FILE,users); setSession(res,user.id);
-          return json(res,201,{loggedIn:true,user:{id:user.id,username:user.username}});
-        } catch { return json(res,400,{error:"Invalid request."}); }
-      });
-      return;
-    }
-
-    if (url.pathname === "/api/login" && req.method === "POST") {
-      let raw = "";
-      req.on("data", c => raw += c);
-      req.on("end", () => {
-        try {
-          const b = JSON.parse(raw);
-          const users = readJson(USERS_FILE, []);
-          const user = users.find(u => u.username.toLowerCase() === String(b.username||"").toLowerCase());
-          if (!user || hashPassword(String(b.password||""),user.salt) !== user.passwordHash) return json(res,401,{error:"Incorrect username or password."});
-          setSession(res,user.id);
-          return json(res,200,{loggedIn:true,user:{id:user.id,username:user.username}});
-        } catch { return json(res,400,{error:"Invalid request."}); }
-      });
-      return;
-    }
-
-    if (url.pathname === "/api/logout" && req.method === "POST") {
-      res.setHeader("Set-Cookie","gamescope_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0");
-      return json(res,200,{loggedIn:false});
-    }
-
-    if (url.pathname === "/api/reviews" && req.method === "GET") {
-      const gameId = url.searchParams.get("gameId");
-      const reviews = readJson(REVIEWS_FILE, []);
-      return json(res, 200, gameId ? reviews.filter(r => r.gameId === gameId) : reviews);
-    }
-
-    if (url.pathname === "/api/reviews" && req.method === "POST") {
-      let raw = "";
-      req.on("data", chunk => raw += chunk);
-      req.on("end", () => {
-        try {
-          const user = currentUser(req);
-          if (!user) return json(res,401,{error:"Log in to post a review."});
-          const review = sanitizeReview(JSON.parse(raw), user);
-          if (!review) return json(res, 400, {error:"Please provide a username, 1–5 star rating, game ID, and review text."});
-          const reviews = readJson(REVIEWS_FILE, []);
-          reviews.push(review);
-          writeJson(REVIEWS_FILE, reviews);
-          return json(res, 201, review);
-        } catch {
-          return json(res, 400, {error:"Invalid JSON."});
-        }
-      });
-      return;
-    }
-
-    let pathname = decodeURIComponent(url.pathname);
-    if (pathname === "/") pathname = "/index.html";
-    const file = path.join(ROOT, pathname.replace(/^\/+/, ""));
-    if (!file.startsWith(ROOT)) return json(res, 403, {error:"Forbidden"});
-    return sendFile(res, file);
-  } catch (e) {
-    return json(res, 500, {error:"Server error"});
-  }
-});
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`GameScope running on http://localhost:${PORT}`);
-  console.log(process.env.PRICE_FEED_URL ? "External normalized price feed enabled." : "External normalized price feed disabled; fallback data used for non-Steam stores.");
-});
+const mime={".html":"text/html",".css":"text/css",".js":"text/javascript"};
+http.createServer(async(req,res)=>{try{let u=new URL(req.url,`http://${req.headers.host||"localhost"}`);if(u.pathname.startsWith("/api/"))return api(req,res,u);let p=path.join(ROOT,u.pathname==="/"?"index.html":u.pathname);if(!fs.existsSync(p))p=path.join(ROOT,"index.html");res.writeHead(200,{"Content-Type":(mime[path.extname(p)]||"application/octet-stream")+"; charset=utf-8"});fs.createReadStream(p).pipe(res)}catch(e){console.error(e);send(res,500,{error:"Server error"})}}).listen(PORT,"0.0.0.0",()=>console.log("GameScope running on port "+PORT));
