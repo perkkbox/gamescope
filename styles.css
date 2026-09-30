@@ -1,0 +1,30 @@
+:root{
+  --bg:#090b10;--panel:#11151d;--panel2:#171c25;--text:#f5f7fb;--muted:#9aa4b2;
+  --line:#29303b;--accent:#7c5cff;--sale:#21d07a;--warning:#f5b942;
+}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#222b3c 0,#090b10 42%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.topbar{padding:24px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);background:#0b0e14ee;position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
+.logo{font-size:28px;font-weight:950;letter-spacing:2px}.sub{color:var(--muted);font-size:13px;margin-top:3px}.status{font-size:12px;color:var(--muted)}
+main{max-width:1500px;margin:auto;padding:24px clamp(16px,4vw,48px) 50px}.controls{display:grid;grid-template-columns:2fr repeat(4,1fr) auto;gap:10px;margin-bottom:14px}
+input,select,textarea,button{font:inherit}input,select,textarea{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 13px;cursor:pointer}
+button:hover{border-color:#505b6d}.controls button{background:var(--accent);border-color:var(--accent);font-weight:800}
+.notice{border:1px solid var(--line);background:#0e1219;padding:11px 13px;border-radius:10px;color:#c8ced8;font-size:13px;margin-bottom:20px}
+.pill{display:inline-block;padding:2px 6px;border-radius:5px;font-size:10px;font-weight:900;letter-spacing:.5px}.live{background:#103d2a;color:#61f2a2}.fallback{background:#3a3014;color:#ffd36b}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+.card{min-height:310px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);position:relative;display:flex;flex-direction:column;box-shadow:0 10px 30px #0004}
+.cover{height:185px;background:linear-gradient(145deg,#263144,#121720);background-size:cover;background-position:center;position:relative}
+.platform{position:absolute;right:8px;top:8px;background:#090b10cc;padding:5px 7px;border-radius:6px;font-size:10px;font-weight:800}
+.discount{position:absolute;left:8px;top:8px;background:var(--sale);color:#06140d;padding:5px 7px;border-radius:6px;font-weight:950;font-size:12px}
+.cardbody{padding:12px;display:flex;flex-direction:column;gap:7px;flex:1}.title{font-weight:850;line-height:1.15}.meta{color:var(--muted);font-size:12px}
+.priceRow{margin-top:auto;display:flex;align-items:end;justify-content:space-between;gap:8px}.price{font-size:21px;font-weight:950}.regular{text-decoration:line-through;color:#737d8b;font-size:12px;margin-left:4px}
+.rating{font-size:13px}.rating b{color:#ffd35a}.actions{display:flex;gap:7px}.actions button{flex:1;padding:8px;font-size:12px}.buy{background:#222a36}.reviewBtn{background:#161d28}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px}
+dialog{border:1px solid var(--line);border-radius:16px;background:#0e1219;color:var(--text);padding:0;width:min(560px,92vw);box-shadow:0 30px 100px #000b}
+dialog::backdrop{background:#000b;backdrop-filter:blur(4px)}#reviewForm{padding:22px;display:grid;gap:13px;position:relative}.close{position:absolute;right:15px;top:15px;border:0;background:transparent;font-size:25px}
+label{display:grid;gap:7px;color:#c7ced9;font-size:13px}.stars{display:flex;gap:4px}.stars button{border:0;background:transparent;color:#596273;font-size:28px;padding:0}.stars button.selected{color:#ffd35a}.submit{background:var(--accent);border-color:var(--accent);font-weight:900}.reviewList{border-top:1px solid var(--line);margin-top:8px;padding-top:10px}.reviewItem{padding:8px 0;border-bottom:1px solid #202631}.reviewHead{display:flex;justify-content:space-between;font-size:12px}.reviewText{font-size:12px;color:#c4cbd5;margin-top:4px}
+@media(max-width:1000px){.controls{grid-template-columns:1fr 1fr}.controls input{grid-column:1/-1}}
+@media(max-width:520px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{min-height:290px}.cover{height:155px}.controls{grid-template-columns:1fr}.logo{font-size:22px}}
+
+.account{display:flex;align-items:center;gap:12px}.account button{background:#171d27}
+#accountForm{padding:22px;display:grid;gap:13px;position:relative}.accountActions{display:flex;gap:8px}.logout{background:#2b1820!important}.meta{line-height:1.35}

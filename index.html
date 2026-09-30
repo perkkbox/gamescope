@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GameScope — Global Game Prices</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="logo">GAMESCOPE</div>
+      <div class="sub">Global game prices • sales • reviews</div>
+    </div>
+    <div class="account"><span class="status" id="status">Loading…</span><button id="accountBtn">Account</button></div>
+  </header>
+
+  <main>
+    <section class="controls">
+      <input id="search" placeholder="Search games…" aria-label="Search games">
+      <select id="platform">
+        <option value="all">All platforms</option>
+        <option>Steam</option><option>Xbox</option><option>Nintendo</option>
+        <option>PlayStation</option><option>Oculus</option>
+      </select>
+      <select id="country">
+        <option value="all">All countries</option>
+        <option value="US">🇺🇸 United States</option>
+        <option value="CA">🇨🇦 Canada</option>
+        <option value="GB">🇬🇧 United Kingdom</option>
+        <option value="JP">🇯🇵 Japan</option>
+        <option value="DE">🇩🇪 Germany</option>
+        <option value="AU">🇦🇺 Australia</option>
+      </select>
+      <select id="sale">
+        <option value="all">Any sale</option>
+        <option value="sale">On sale</option>
+        <option value="50">50%+ off</option>
+        <option value="75">75%+ off</option>
+      </select>
+      <select id="sort">
+        <option value="discount">Biggest discount</option>
+        <option value="price">Lowest price</option>
+        <option value="rating">Highest rating</option>
+        <option value="name">Name</option>
+      </select>
+      <button id="refresh">↻ Refresh prices</button>
+    </section>
+
+    <div class="notice">
+      <strong>Price source:</strong> Live data is marked <span class="pill live">LIVE</span>.
+      Other entries are clearly marked as fallback/demo data. This avoids presenting stale prices as current.
+    </div>
+
+    <section id="grid" class="grid"></section>
+  </main>
+
+  <dialog id="reviewDialog">
+    <form method="dialog" id="reviewForm">
+      <button class="close" value="cancel" aria-label="Close">×</button>
+      <h2 id="reviewTitle">Review</h2><div id="reviewPlatform" class="meta"></div>
+      <input type="hidden" id="reviewGameId">
+      <div id="loginHint" class="meta">You must be logged in to post reviews.</div>
+      <label>Rating
+        <span class="stars" id="ratingStars">
+          <button type="button" data-rating="1">★</button><button type="button" data-rating="2">★</button>
+          <button type="button" data-rating="3">★</button><button type="button" data-rating="4">★</button>
+          <button type="button" data-rating="5">★</button>
+        </span>
+      </label>
+      <input type="hidden" id="reviewRating" value="5">
+      <label>Your review<textarea id="reviewText" maxlength="1000" required placeholder="What did you think?"></textarea></label>
+      <button class="submit" value="default">Post review</button>
+      <div id="reviewMessage"></div>
+    </form>
+  </dialog>
+
+  <dialog id="accountDialog">
+    <form method="dialog" id="accountForm">
+      <button class="close" value="cancel" aria-label="Close">×</button>
+      <h2 id="accountTitle">GameScope Account</h2>
+      <div id="accountState"></div>
+      <div id="accountFields">
+        <label>Username<input id="accountUser" maxlength="24" autocomplete="username"></label>
+        <label>Password<input id="accountPass" type="password" minlength="8" autocomplete="current-password"></label>
+      </div>
+      <div class="accountActions">
+        <button type="button" id="loginBtn" class="submit">Log in</button>
+        <button type="button" id="registerBtn">Create account</button>
+        <button type="button" id="logoutBtn" class="logout" hidden>Log out</button>
+      </div>
+      <div id="accountMessage"></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
